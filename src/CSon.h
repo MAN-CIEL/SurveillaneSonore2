@@ -1,3 +1,8 @@
+/**
+ * @file CSon.h
+ * @brief Classe pour l'acquisition et le traitement du signal audio
+ */
+
 #include "arduinoFFT.h" 
 #include <driver/i2s.h>
 
