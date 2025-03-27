@@ -2,6 +2,7 @@
  * @file CSon.h
  * @brief Classe pour l'acquisition et le traitement du signal audio
  */
+#define CSON_H
 
 #include "arduinoFFT.h" 
 #include <driver/i2s.h>
