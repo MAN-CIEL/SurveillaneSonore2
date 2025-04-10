@@ -1,3 +1,4 @@
+#include "CSon.h"
 // Configuration des broches I2S
 this->pinConfig = {
     .bck_io_num = 14,   // Broche clock (BCK)
