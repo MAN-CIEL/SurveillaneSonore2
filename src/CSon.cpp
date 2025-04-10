@@ -98,3 +98,21 @@ CSon::CSon()
         .data_in_num = 12
     };
 }
+
+void applyAWeighting(double* signal, double* output, size_t length) {
+    static double x1 = 0.0, x2 = 0.0;
+    static double y1 = 0.0, y2 = 0.0;
+    
+    const double b[] = {0.255741125204258, -0.511482250408515, 0.255741125204258};
+    const double a[] = {1.0, -1.734725768809275, 0.766006609943264};
+    
+    for (size_t i = 0; i < length; ++i) {
+        double x0 = signal[i];
+        double y0 = b[0]*x0 + b[1]*x1 + b[2]*x2 - a[1]*y1 - a[2]*y2;
+        
+        x2 = x1; x1 = x0;
+        y2 = y1; y1 = y0;
+        
+        output[i] = y0;
+    }
+}
