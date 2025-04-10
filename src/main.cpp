@@ -16,6 +16,20 @@ void setup() {
   son.Setup();
 }
 
+void AfficherSpecte(double * vRe) {
+    int barWidth = 1;
+    int spacing = 0;
+    int maxHeight = 63;
+    ecranOled.clear();
+    
+    for (int i = 1; i < 128; i++) {
+        double val = vRe[i];
+        int barHeight = map(val, 0, 700000, 0, maxHeight);
+        ecranOled.fillRect(i * (barWidth + spacing), 64 - barHeight, barWidth, barHeight);
+    }
+    ecranOled.display();
+}
+
 void loop() {
   static unsigned long lastSendTime = 0;
   const unsigned long sendInterval = 100; // Intervalle d'affichage en ms
