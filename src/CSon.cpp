@@ -33,47 +33,68 @@ CSon::Setup()
     return result; 
 }
 
-esp_err_t CSon::SampleSDmaAcquisition()
+esp_err_t CSon::SamplesDmaAcquisition()
 {
-    // Nombre d'octets lues en mémoire DMA
     size_t bytesRead;
-    
-    // Capture des données audio via DMA
-    // I2S_NUM_0 : Port I2S utilisé
-    // &this->i2sData : Buffer de destination pour les données
-    // sizeof(this->i2sData) : Taille du buffer en octets
-    // &bytesRead : Nombre d'octets réellement lus (sortie)
-    // portMAX_DELAY : Attente infinie si nécessaire
+    // 1. Acquisition des données brutes via DMA
     result = i2s_read(I2S_NUM_0, &this->i2sData, sizeof(this->i2sData), &bytesRead, portMAX_DELAY);
 
-    if (result == ESP_OK)
+    if (result == ESP_OK && bytesRead > 0)
     {
-        // Conversion du nombre d'octets en nombre d'échantillons (chaque échantillon fait 4 octets en 32 bits)
         int16_t samplesRead = bytesRead / 4;
         
-        if (samplesRead > 0)
+        // 2. Préparation des données pour la FFT
+        for (int16_t i = 0; i < samplesRead; ++i)
         {
-            float mean = 0;
-            
-            // Traitement de chaque échantillon
-            for (int16_t i = 0; i < samplesRead; ++i)
-            {
-                // Décalage de 8 bits vers la droite pour obtenir une valeur 24 bits signée
-                // (le microphone INMP441 envoie des données 24 bits dans un format 32 bits)
-                i2sData[i] = i2sData[i] >> 8;
-                
-                // Calcul de la valeur absolue et ajout à la moyenne
-                mean += abs(i2sData[i]);
-                
-                // Mise à jour de la valeur crête si nécessaire
-                if (abs(i2sData[i]) > niveauSonoreCrete) 
-                    niveauSonoreCrete = abs(i2sData[i]);
-            }
-            
-            // Calcul de la moyenne des valeurs absolues (approximation RMS)
-            this->niveauSonoreMoyen = mean / samplesRead;
+            i2sData[i] = i2sData[i] >> 8;  // Conversion 24→32 bits
+            vReal[i] = (double)i2sData[i];  // Remplissage partie réelle
+            vImag[i] = 0.0;                 // Partie imaginaire à zéro
         }
+
+        // 3. Traitement FFT (code de votre image)
+        FFT.windowing(this->vReal, SAMPLES, FFT_WIN_TYPE_HAMMING, FFT_FORWARD);  // Fenêtrage
+        FFT.compute(this->vReal, this->vImag, SAMPLES, FFT_FORWARD);            // Calcul FFT
+        FFT.complexToMagnitude(this->vReal, this->vImag, SAMPLES);              // Conversion amplitude
+
+        // 4. Calcul des niveaux sonores (existant)
+        float mean = 0;
+        for (int16_t i = 0; i < samplesRead; ++i) {
+            mean += abs(i2sData[i]);
+            if (abs(i2sData[i]) > niveauSonoreCrete) niveauSonoreCrete = abs(i2sData[i]);
+        }
+        this->niveauSonoreMoyen = mean / samplesRead;
     }
 
     return result;
+}
+
+/**
+ * @brief Constructeur de la classe CSon
+ * 
+ * Initialise les attributs et configure la FFT avec :
+ * - Les tableaux vReal/vImag pour le stockage
+ * - Le nombre d'échantillons (SAMPLES)
+ * - La fréquence d'échantillonnage (SAMPLING_FREQUENCY)
+ */
+CSon::CSon() 
+    : FFT(vReal,               // Buffer partie réelle
+          vImag,               // Buffer partie imaginaire 
+          SAMPLES,             // Nombre d'échantillons
+          SAMPLING_FREQUENCY)  // Fréquence d'échantillonnage
+{
+    /* Initialisation des niveaux sonores */
+    niveauSonoreMoyen = 0.0f;
+    niveauSonoreCrete = 0.0f;
+    
+    /* Initialisation des buffers FFT */
+    memset(vReal, 0, SAMPLES * sizeof(double));
+    memset(vImag, 0, SAMPLES * sizeof(double));
+    
+    /* Configuration I2S par défaut */
+    pinConfig = {
+        .bck_io_num = 14,
+        .ws_io_num = 13,
+        .data_out_num = I2S_PIN_NO_CHANGE,
+        .data_in_num = 12
+    };
 }

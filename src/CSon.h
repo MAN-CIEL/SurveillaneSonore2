@@ -4,7 +4,11 @@
  */
 #define CSON_H
 
-#include "arduinoFFT.h" 
+#include "arduinoFFT.h"
+/// @brief FFT Partie réelle  
+double vReal[SAMPLES]; 
+/// @brief FFT Partie imaginaire 
+double vImag[SAMPLES]; 
 #include <driver/i2s.h>
 
 #define SAMPLES 512                 // Nombre d'échantillons 
@@ -19,6 +23,7 @@
 class CSon 
 {
 public:
+    ArduinoFFT<double> FFT;  // Déclaration de l'attribut FFT
     float niveauSonoreMoyen;
     float niveauSonoreCrete;
     double vReal[SAMPLES];
