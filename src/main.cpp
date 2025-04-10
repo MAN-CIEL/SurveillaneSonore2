@@ -1,64 +1,70 @@
-#include <Arduino.h>
-#include "Wire.h"
-#include "SSD1306.h"
 #include "CSon.h"
-#define PERIODE_RELEVE 10000  // période relevé et envoi en ms
+#include <Wire.h>
+#include "SSD1306Wire.h"
 
-void setup() {
-  Serial.begin(115200);
-  ecranOled.init();
-  ecranOled.clear();
-  ecranOled.setFont(ArialMT_Plain_16);
-  ecranOled.drawString(0, 0, "Surveillance Sonore");
-  ecranOled.setFont(ArialMT_Plain_10);
-  ecranOled.drawString(0, 20, "Version 2024");
-  ecranOled.display();
-  son.Setup();
-}
+#define PERIODE_RELEVE 10000  // Période de relevé en ms
 
-void AfficherSpecte(double * vRe) {
-    int barWidth = 1;
-    int spacing = 0;
-    int maxHeight = 63;
+// Instanciations globales
+SSD1306Wire ecranOled(0x3c, 5, 4);  // Adresse I2C, SDA, SCL
+CSon son;
+
+/**
+ * @brief Affichage du spectre sur OLED
+ */
+void AfficherSpectre(double* vRe)
+{
     ecranOled.clear();
+    int maxHeight = 63;
     
-    for (int i = 1; i < 128; i++) {
-        double val = vRe[i];
-        int barHeight = map(val, 0, 700000, 0, maxHeight);
-        ecranOled.fillRect(i * (barWidth + spacing), 64 - barHeight, barWidth, barHeight);
+    for(int i = 1; i < 128; i++) {
+        int barHeight = map(vRe[i], 0, 700000, 0, maxHeight);
+        ecranOled.fillRect(i, 64 - barHeight, 1, barHeight);
     }
     ecranOled.display();
 }
 
-void loop() {
-  static unsigned long lastSendTime = 0;
-  const unsigned long sendInterval = 100; // Intervalle d'affichage en ms
-  float niveauSonoreMoy=0; 
-  int periodeReleve = PERIODE_RELEVE/son.tempsEchantillon;
-  float niveauSonoreMoyenDB=0; 
-  float niveauSonoreCreteDB=0;
-  niveauSonoreMoyenDB = 20 * log10( niveauSonoreMoy )-14.56 ;   
-  niveauSonoreCreteDB = 20 * log10( son.niveauSonoreCrete )-18.474 ;
-  son.SamplesDmaAcquisition();
-  // Affichage périodique pour éviter de surcharger le port série
-  if (millis() - lastSendTime >= sendInterval) {
-      lastSendTime = millis();
-      
-      // Version pour Serial Plotter (courbes)
-      Serial.print("Moyenne_dB:"); Serial.print(niveauSonoreMoyenDB);
-      Serial.print(",Crete_dB:"); Serial.println(niveauSonoreCreteDB);
-      
-      // Version pour Serial Monitor (valeurs précises)
-      Serial.print("Niveau moyen: "); Serial.print(niveauSonoreMoyenDB); Serial.print(" dB");
-      Serial.print(" | Crête: "); Serial.print(niveauSonoreCreteDB); Serial.println(" dB");
-  }
-  
-  // Affichage sur OLED (optionnel)
-  static int displayCount = 0;
-  if (displayCount++ % 2 == 0) {
-      AfficherSpecte(son.vReal);
-  }
-  delay(100);
+void setup()
+{
+    Serial.begin(115200);
+    
+    // Initialisation OLED
+    ecranOled.init();
+    ecranOled.clear();
+    ecranOled.setFont(ArialMT_Plain_16);
+    ecranOled.drawString(0, 0, "Surveillance");
+    ecranOled.drawString(0, 20, "Sonore");
+    ecranOled.display();
+    delay(2000);
+    
+    // Initialisation audio
+    if(son.Setup() != ESP_OK) {
+        Serial.println("Erreur init I2S!");
+        while(1);
+    }
 }
 
-SSD1306 ecranOled(0x3c, 5, 4);
+void loop()
+{
+    static unsigned long lastTime = 0;
+    static int displayCount = 0;
+    
+    son.SamplesDmaAcquisition();
+    
+    // Calcul des dB
+    float moyenDB = 20 * log10(son.niveauSonoreMoyen) - 14.56;
+    float creteDB = 20 * log10(son.niveauSonoreCrete) - 18.474;
+    
+    // Affichage série
+    if(millis() - lastTime >= 100) {
+        lastTime = millis();
+        Serial.print("Moyen:"); Serial.print(moyenDB);
+        Serial.print(",Crete:"); Serial.println(creteDB);
+    }
+    
+    // Affichage OLED (toutes les 2 itérations)
+    if(displayCount++ % 2 == 0) {
+        AfficherSpectre(son.vReal);
+    }
+    
+    delay(10);
+}

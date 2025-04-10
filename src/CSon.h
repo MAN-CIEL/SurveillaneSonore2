@@ -1,44 +1,37 @@
-/**
- * @file CSon.h
- * @brief Classe pour l'acquisition et le traitement du signal audio
- */
+#ifndef CSON_H
 #define CSON_H
 
 #include "arduinoFFT.h"
-/// @brief FFT Partie réelle  
-double vReal[SAMPLES]; 
-/// @brief FFT Partie imaginaire 
-double vImag[SAMPLES]; 
 #include <driver/i2s.h>
 
-#define SAMPLES 512                 // Nombre d'échantillons 
-#define SAMPLING_FREQUENCY 44100    // Fréquence d'échantillonnage 
-#define DMA_BUF_LEN 512             // Taille du buffer DMA : 512 échantillons 
-#define DMA_BUF_COUNT 8             // Nombre de buffers DMA : 8 
+#define SAMPLES 512
+#define SAMPLING_FREQUENCY 44100
+#define DMA_BUF_LEN 512
+#define DMA_BUF_COUNT 8
 
 /**
  * @class CSon
- * @brief Gère l'acquisition audio et les traitements associés
+ * @brief Classe de gestion de l'acquisition et du traitement audio
  */
-class CSon 
-{
+class CSon {
 public:
-    ArduinoFFT<double> FFT;  // Déclaration de l'attribut FFT
     float niveauSonoreMoyen;
     float niveauSonoreCrete;
     double vReal[SAMPLES];
     double vImag[SAMPLES];
     esp_err_t result;
     float tempsEchantillon;
-    
+    ArduinoFFT<double> FFT;
+
     CSon();
     esp_err_t Setup();
     esp_err_t SamplesDmaAcquisition();
-    
+
 private:
     size_t bytesRead;
     int32_t i2sData[SAMPLES];
     i2s_pin_config_t pinConfig;
     i2s_config_t i2sConfig;
-    ArduinoFFT<double> FFT;
 };
+
+#endif
